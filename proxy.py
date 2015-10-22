@@ -3,6 +3,7 @@
 import asyncio
 import functools
 import json
+import os
 import time
 import urllib.parse
 import werkzeug
@@ -255,6 +256,12 @@ if __name__ == "__main__":
 
     host = "127.0.0.1"
     port = 8001
+
+    if "PROXY_HOST" in os.environ:
+        host = os.environ["PROXY_HOST"]
+
+    if "PROXY_PORT" in os.environ:
+        port = int(os.environ["PROXY_PORT"])
 
     stats = Stats()
     on_connected = functools.partial(on_connected,
