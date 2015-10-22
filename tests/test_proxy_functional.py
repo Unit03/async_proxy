@@ -65,9 +65,46 @@ def test_get_range_multi():
     response = requests.get("http://localhost:8000",
                             headers={"range": "bytes=6-11,19-23"},
                             proxies={"http": "http://localhost:8001"})
-    
+
     assert response.status_code == 200
     assert response.text == "<head>Hello"
+
+
+@pytest.mark.functional
+def test_get_range_query():
+    response = requests.get("http://localhost:8000",
+                            params={"range": "bytes=6-"},
+                            proxies={"http": "http://localhost:8001"})
+
+    assert response.status_code == 200
+    assert response.text.startswith("<head>")
+    assert "<title>Hello</title>" in response.text
+    assert "<h1>Hello</h1>" in response.text
+
+
+@pytest.mark.functional
+def test_get_range_both():
+    # Range specified both in query and headers.
+    response = requests.get("http://localhost:8000",
+                            params={"range": "bytes=6-"},
+                            headers={"range": "bytes=6-"},
+                            proxies={"http": "http://localhost:8001"})
+
+    assert response.status_code == 200
+    assert response.text.startswith("<head>")
+    assert "<title>Hello</title>" in response.text
+    assert "<h1>Hello</h1>" in response.text
+
+
+@pytest.mark.functional
+def test_get_range_mismatch():
+    # Range specified both in query and headers, but differently.
+    response = requests.get("http://localhost:8000",
+                            params={"range": "bytes=6-"},
+                            headers={"range": "bytes=7-"},
+                            proxies={"http": "http://localhost:8001"})
+
+    assert response.status_code == 416
 
 
 @pytest.mark.functional
@@ -77,7 +114,7 @@ def test_post():
     response = requests.post("http://localhost:8000",
                              proxies={"http": "http://localhost:8001"},
                              data=data)
-    
+
     assert response.status_code == 200
     assert "<title>Hello</title>" in response.text
     assert data.decode() in response.text

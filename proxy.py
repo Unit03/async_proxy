@@ -127,11 +127,6 @@ async def relay_to_remote(reader, writer):
 async def on_connected(client_reader, client_writer, listen_on, stats):
     address = client_writer.get_extra_info("peername")
 
-    headers = ""
-    host = None
-    port = 80
-    bytes_ranges = None
-
     line = await client_reader.readline()
 
     if not line:
@@ -141,19 +136,28 @@ async def on_connected(client_reader, client_writer, listen_on, stats):
     # For GET /stats.
     line = line.decode()
     data = line.split()
-    if data[0].lower() == "get" \
-            and urllib.parse.urlparse(data[1]).path == "/stats":
+    url = urllib.parse.urlparse(data[1])
+    if data[0].lower() == "get" and url.path == "/stats":
         data = json.dumps(stats.dictionary).encode()
         client_writer.write(b"HTTP/1.1 200 OK\r\n")
         client_writer.write(b"Content-Length: %d\r\n" % len(data))
         client_writer.write(b"Content-Type: application/json\r\n\r\n")
         client_writer.write(data)
         client_writer.write(b"\r\n")
+        await client_writer.drain()
         client_writer.close()
         return
 
-    headers += line
+    query = urllib.parse.parse_qs(url.query)
+    query_ranges = None
+    if "range" in query:
+        query_ranges = werkzeug.http.parse_range_header(query["range"][0])
 
+    headers = line
+
+    host = None
+    port = 80
+    bytes_ranges = None
     while True:
         line = await client_reader.readline()
 
@@ -176,11 +180,20 @@ async def on_connected(client_reader, client_writer, listen_on, stats):
             bytes_ranges = werkzeug.http.parse_range_header(value)
         headers += line
 
+    if query_ranges and bytes_ranges:
+        if query_ranges.ranges != bytes_ranges.ranges:
+            client_writer.write(
+                b"HTTP/1.1 416 Requested Range Not Satisfiable\r\n")
+            await client_writer.drain()
+            client_writer.close()
+            return
+    elif query_ranges:
+        bytes_ranges = query_ranges
+
     if not host or listen_on == (host, port) \
             or host in ("127.0.0.1", "localhost") and port == listen_on[1]:
         # Close connections without (or with circular) Host header right away.
         client_writer.close()
-        print("Invalid")
         return
 
     try:
