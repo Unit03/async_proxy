@@ -1,6 +1,6 @@
 import asyncio
 
-import run
+import proxy
 
 
 class MockWriter:
@@ -13,6 +13,7 @@ class MockWriter:
     async def drain(self):
         pass
 
+
 def test_relay_to_client():
     async def test_write(reader):
         reader.feed_data(b"foo\r\n\r\n")
@@ -24,7 +25,8 @@ def test_relay_to_client():
         writer = MockWriter()
 
         await asyncio.wait([
-            loop.create_task(run.relay_to_client(reader, writer)),
+            loop.create_task(proxy.relay_to_client(
+                reader, writer, proxy.Stats())),
             loop.create_task(test_write(reader)),
         ])
 
@@ -46,7 +48,7 @@ def test_relay_to_remote():
         writer = MockWriter()
 
         await asyncio.wait([
-            loop.create_task(run.relay_to_remote(reader, writer)),
+            loop.create_task(proxy.relay_to_remote(reader, writer)),
             loop.create_task(test_write(reader)),
         ])
 

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import pytest
 import requests
@@ -13,7 +14,7 @@ def setup_function(function):
     simple_server = subprocess.Popen([python, "simple_server.py"])
 
     global proxy_server
-    proxy_server = subprocess.Popen([python, "run.py"])
+    proxy_server = subprocess.Popen([python, "proxy.py"])
     time.sleep(0.5)
 
     # Check for failed runs of above servers (they will fail in teardown if
@@ -82,5 +83,28 @@ def test_post():
     assert data.decode() in response.text
 
 
-if __name__ == "__main__":
-    test_functional()
+@pytest.mark.functional
+def test_stats():
+    response = requests.get("http://localhost:8001/stats",
+                            proxies={"http": "http://localhost:8001"},
+                            )
+
+    assert response.status_code == 200
+    data = json.loads(response.text)
+
+    assert data["total_bytes_transferred"] == 0
+    assert "uptime" in data
+
+    response = requests.get("http://localhost:8000",
+                            proxies={"http": "http://localhost:8001"})
+
+    assert response.status_code == 200
+
+    response = requests.get("http://localhost:8001/stats",
+                            proxies={"http": "http://localhost:8001"},
+                            )
+
+    assert response.status_code == 200
+    data = json.loads(response.text)
+
+    assert data["total_bytes_transferred"] > 0

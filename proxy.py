@@ -2,10 +2,13 @@
 
 import asyncio
 import functools
+import json
+import time
+import urllib.parse
 import werkzeug
 
 
-async def relay_to_client(reader, writer, bytes_ranges=None):
+async def relay_to_client(reader, writer, stats, bytes_ranges=None):
     # Relay headers.
     while True:
         try:
@@ -17,7 +20,7 @@ async def relay_to_client(reader, writer, bytes_ranges=None):
             break
 
         writer.write(line)
-        # await writer.drain()
+        await writer.drain()
 
     writer.write(b"\r\n")
 
@@ -28,6 +31,7 @@ async def relay_to_client(reader, writer, bytes_ranges=None):
 
     # TODO: Ranging machinery only if "Content-Range" not in incoming reponse
     #       headers.
+    # TODO: bytes=-N ranges - buffer N last bytes and send.
     b_start = 0  # Incoming data pointer [bytes].
     current_range = bytes_ranges.pop(0)
     i = 0
@@ -88,6 +92,7 @@ async def relay_to_client(reader, writer, bytes_ranges=None):
                 b_start = b_end
                 break
 
+            stats.total_bytes_transferred += len(data)
             writer.write(data)
             await writer.drain()
 
@@ -119,14 +124,36 @@ async def relay_to_remote(reader, writer):
         await writer.drain()
 
 
-async def on_connected(client_reader, client_writer, listen_on):
+async def on_connected(client_reader, client_writer, listen_on, stats):
     address = client_writer.get_extra_info("peername")
 
-    headers = await client_reader.readline()
-    headers = headers.decode()
+    headers = ""
     host = None
     port = 80
     bytes_ranges = None
+
+    line = await client_reader.readline()
+
+    if not line:
+        client_writer.close()
+        return
+
+    # For GET /stats.
+    line = line.decode()
+    data = line.split()
+    if data[0].lower() == "get" \
+            and urllib.parse.urlparse(data[1]).path == "/stats":
+        data = json.dumps(stats.dictionary).encode()
+        client_writer.write(b"HTTP/1.1 200 OK\r\n")
+        client_writer.write(b"Content-Length: %d\r\n" % len(data))
+        client_writer.write(b"Content-Type: application/json\r\n\r\n")
+        client_writer.write(data)
+        client_writer.write(b"\r\n")
+        client_writer.close()
+        return
+
+    headers += line
+
     while True:
         line = await client_reader.readline()
 
@@ -153,6 +180,7 @@ async def on_connected(client_reader, client_writer, listen_on):
             or host in ("127.0.0.1", "localhost") and port == listen_on[1]:
         # Close connections without (or with circular) Host header right away.
         client_writer.close()
+        print("Invalid")
         return
 
     try:
@@ -173,6 +201,7 @@ async def on_connected(client_reader, client_writer, listen_on):
     await asyncio.wait([
             loop.create_task(relay_to_client(remote_reader,
                                              client_writer,
+                                             stats,
                                              bytes_ranges)),
             loop.create_task(relay_to_remote(client_reader,
                                              remote_writer)),
@@ -184,13 +213,41 @@ async def on_connected(client_reader, client_writer, listen_on):
     remote_writer.close()
 
 
+class Stats:
+    def __init__(self):
+        self.total_bytes_transferred = 0
+        self.start_time = time.time()
+
+    @property
+    def dictionary(self):
+        uptime = time.time() - self.start_time
+        days, remainder = divmod(uptime, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        days, hours, minutes, seconds
+
+        return {
+            "total_bytes_transferred": self.total_bytes_transferred,
+            "uptime": {
+                "days": int(days),
+                "hours": int(hours),
+                "minutes": int(minutes),
+                "seconds": int(seconds),
+            }
+        }
+
+
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
     host = "127.0.0.1"
     port = 8001
 
-    on_connected = functools.partial(on_connected, listen_on=(host, port))
+    stats = Stats()
+    on_connected = functools.partial(on_connected,
+                                     listen_on=(host, port),
+                                     stats=stats,
+                                     )
 
     server = loop.run_until_complete(asyncio.start_server(
         on_connected,
