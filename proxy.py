@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import asyncio
 import functools
 import json
@@ -254,8 +252,8 @@ class Stats:
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
-    host = "127.0.0.1"
-    port = 8001
+    host = "0.0.0.0"
+    port = 8000
 
     if "PROXY_HOST" in os.environ:
         host = os.environ["PROXY_HOST"]

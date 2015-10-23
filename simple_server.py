@@ -22,7 +22,7 @@ class SimpleHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = http.server.HTTPServer(("localhost", 8000), SimpleHandler)
+    server = http.server.HTTPServer(("localhost", 8001), SimpleHandler)
 
     print("Start: {}".format(datetime.datetime.now()))
     try:
