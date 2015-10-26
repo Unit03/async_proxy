@@ -1,14 +1,25 @@
+import argparse
 import datetime
 import http.server
+import urllib.parse
 
 
 class SimpleHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write("<html><head><title>Hello</title></head>".encode())
-        self.wfile.write("<body><h1>Hello</h1></body></html>".encode())
+        url = urllib.parse.urlparse(self.path)
+        if url.path == "/range":
+            self.send_response(206)
+            self.send_header("Content-Range", "bytes 6-11/*")
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            # Hard-coded range of bytes=6-11.
+            self.wfile.write("<head>".encode())
+        else:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write("<html><head><title>Hello</title></head>".encode())
+            self.wfile.write("<body><h1>Hello</h1></body></html>".encode())
 
     def do_POST(self):
         self.send_response(200)
@@ -22,9 +33,15 @@ class SimpleHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = http.server.HTTPServer(("localhost", 8001), SimpleHandler)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("port", nargs="?", default=8001, type=int)
+    args = parser.parse_args()
 
-    print("Start: {}".format(datetime.datetime.now()))
+    host = "localhost"
+    server = http.server.HTTPServer((host, args.port), SimpleHandler)
+
+    print("Start: {}. Listening on {}:{}"
+          .format(datetime.datetime.now(), host, args.port))
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -16,21 +16,21 @@ class MockWriter:
 
 def test_relay_to_client():
     async def test_write(reader):
-        reader.feed_data(b"foo\r\n\r\n")
-        reader.feed_data(b"bar")
+        reader.feed_data(b"HTTP/1.1 200 OK\r\n")
+        reader.feed_data(b"Bar: baz")
         reader.feed_eof()
 
     async def _relay(loop):
-        reader = asyncio.StreamReader(loop=loop)
-        writer = MockWriter()
+        remote = asyncio.StreamReader(loop=loop)
+        client = MockWriter()
 
         await asyncio.wait([
             loop.create_task(proxy.relay_to_client(
-                reader, writer, proxy.Stats())),
-            loop.create_task(test_write(reader)),
+                remote, client, proxy.Stats())),
+            loop.create_task(test_write(remote)),
         ])
 
-        assert writer.data == [b"foo\r\n", b"\r\n", b"bar"]
+        assert client.data == [b"HTTP/1.1 200 OK\r\n", b"Bar: baz", b"\r\n"]
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(_relay(loop))

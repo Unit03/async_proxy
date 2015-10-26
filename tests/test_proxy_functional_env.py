@@ -11,7 +11,7 @@ def setup_function(function):
     python = os.path.join(os.environ["VIRTUAL_ENV"], "bin", "python")
 
     global simple_server
-    simple_server = subprocess.Popen([python, "simple_server.py"])
+    simple_server = subprocess.Popen([python, "simple_server.py", "8001"])
 
     global proxy_server
     env = copy.deepcopy(os.environ)
@@ -32,7 +32,7 @@ def teardown_function(function):
 
 @pytest.mark.functional
 def test_get():
-    response = requests.get("http://localhost:8000",
+    response = requests.get("http://localhost:8001",
                             proxies={"http": "http://localhost:8123"})
 
     assert response.status_code == 200
