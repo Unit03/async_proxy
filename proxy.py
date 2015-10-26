@@ -29,7 +29,6 @@ async def _relay_ranged_body_to_client(remote, client, stats, bytes_ranges):
 
     """
 
-    # TODO: bytes=-N ranges - buffer N last bytes and send.
     b_start = 0  # Incoming data "pointer" (along whole response body) [bytes].
     bytes_ranges = list(bytes_ranges.ranges)  # Get ranges list.
     current_range = bytes_ranges.pop(0)  # Get first range specified by client.
@@ -174,7 +173,7 @@ async def _relay_body_to_client(remote, client, stats):
 
 
 async def relay_to_client(remote, client, stats, bytes_ranges=None):
-    """Relay response body from remote server to client.
+    """Relay response from remote server to client.
 
     Relay response headers, checking whether remote server handled ranges for
     us, then relay body of the response accordingly.
@@ -244,14 +243,8 @@ async def relay_to_client(remote, client, stats, bytes_ranges=None):
 async def relay_to_remote(client, remote):
     """Relay request body from client to remote server.
 
-    Relay response headers, checking whether remote server handled ranges for
-    us, then relay body of the response accordingly.
-
     :param asyncio.StreamReader remote: remote server's reader stream
     :param asyncio.StreamWriter client: proxy's client writer stream
-    :param Stats stats: stats object
-    :param werkzeug.datastructures.Ranges bytes_ranges: optional ranges
-                                                        specification
 
     """
 
@@ -323,7 +316,6 @@ async def on_connected(client_reader, client_writer, listen_on, stats):
         line = line.decode()
 
         # Most basic parsing of headers.
-        # TODO: Use more sophisticated parser, maybe?
         key, value = line.split(":", maxsplit=1)
         key = key.lower().strip()
         value = value.strip()
