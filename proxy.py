@@ -355,6 +355,9 @@ async def on_connected(client_reader, client_writer, listen_on, stats):
         # If ranges specified only in query.
         bytes_ranges = query_ranges
 
+        # Add Range header to request.
+        headers += "Range: {}\r\n".format(bytes_ranges.to_header())
+
     if not host or listen_on == (host, port) \
             or host in ("127.0.0.1", "localhost") and port == listen_on[1]:
         # Close connections without (or with recursive) Host header right away.
