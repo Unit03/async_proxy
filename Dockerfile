@@ -13,4 +13,4 @@ RUN pip install -e .
 ENV PROXY_HOST 0.0.0.0
 ENV PROXY_PORT 8000
 
-CMD ["python", "proxy.py"]
+CMD ["python", "-u", "proxy.py"]
