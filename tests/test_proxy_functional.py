@@ -143,7 +143,6 @@ def test_get_range_mismatch():
     assert response.status_code == 416
 
 
-
 @pytest.mark.functional
 def test_post():
     data = b"zxcv"
