@@ -81,41 +81,44 @@ async def _relay_ranged_body_to_client(remote, client, stats, bytes_ranges):
                 # All comments should also include "or is at the beginning/end
                 # of# the buffer" - hence ">=" and "<=" operators, not ">" and
                 # "<".
+                # Range's start is within the buffer and range's end is None.
                 if b_start <= current_range[0] and b_end >= current_range[0] \
                         and current_range[1] is None:
-                    # Range's start is within the buffer and range's end is
-                    # None.
                     data = buf[current_range[0] - b_start:]
                     buffer_ended = True
+                # Range's start is before the buffer and range's end is None.
                 elif b_start >= current_range[0] and current_range[1] is None:
                     data = buf
                     buffer_ended = True
-                    # Range's start is before the buffer and range's end is
-                    # None.
+                # Buffer does not overlap with current range and range's end is
+                # None.
+                elif current_range[1] is None:
+                    b_start = b_end
+                    break
+                # Range's start is within buffer and range's end is beyond# the
+                # buffer.
                 elif b_start <= current_range[0] and b_end >= current_range[0] \
                         and b_end <= current_range[1]:
-                    # Range's start is within buffer and range's end is beyond
-                    # the buffer.
                     data = buf[current_range[0] - b_start:]
                     buffer_ended = True
+                # Whole range is within the buffer.
                 elif b_start <= current_range[0] and b_end >= current_range[1]:
-                    # Whole range is within the buffer.
                     data = buf[current_range[0] - b_start
                                :current_range[1] - b_start]
                     range_ended = True
+                # Range's start is before the buffer and range's end is within
+                # the buffer
                 elif b_start >= current_range[0] \
                         and b_start <= current_range[1] \
                         and b_end >= current_range[1]:
-                    # Range's start is before the buffer and range's end is
-                    # within the buffer
                     data = buf[:current_range[1] - b_start]
                     range_ended = True
+                # Buffer is within the range.
                 elif b_start >= current_range[0] and b_end <= current_range[1]:
-                    # Buffer is within the range.
                     data = buf
                     buffer_ended = True
+                # Buffer does not overlap with current range.
                 else:
-                    # Buffer does not overlap current range.
                     b_start = b_end
                     break
 
@@ -235,6 +238,7 @@ async def relay_to_client(remote, client, stats, bytes_ranges=None):
 
     # Relay body of the response, with or without ranges handling.
     if bytes_ranges is not None:
+        print("Relay ranged: {}".format(bytes_ranges))
         await _relay_ranged_body_to_client(remote, client, stats, bytes_ranges)
     else:
         await _relay_body_to_client(remote, client, stats)
@@ -354,6 +358,7 @@ async def on_connected(client_reader, client_writer, listen_on, stats):
         return
 
     try:
+        print("Proxying to {}:{}".format(host, port))
         # Open connection to remote server.
         remote_reader, remote_writer = await asyncio.open_connection(
             host=host,
@@ -434,6 +439,7 @@ if __name__ == "__main__":
                                      )
 
     # Run the server.
+    print("Running proxy on {}:{}".format(host, port))
     server = loop.run_until_complete(asyncio.start_server(
         on_connected,
         host,

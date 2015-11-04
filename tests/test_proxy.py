@@ -1,4 +1,5 @@
 import asyncio
+from unittest import mock
 
 import proxy
 
@@ -32,9 +33,10 @@ def test_relay_to_client():
 
         assert client.data == [b"HTTP/1.1 200 OK\r\n", b"Bar: baz", b"\r\n"]
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(_relay(loop))
-    # loop.close()
+    with mock.patch.object(proxy, "READ_BUFFER_SIZE", new=20):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(_relay(loop))
+        # loop.close()
 
 
 def test_relay_to_remote():
@@ -54,6 +56,7 @@ def test_relay_to_remote():
 
         assert writer.data == [b"foobar"]  # Not 2 because of only one write().
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(_relay(loop))
-    # loop.close()
+    with mock.patch.object(proxy, "READ_BUFFER_SIZE", new=20):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(_relay(loop))
+        # loop.close()

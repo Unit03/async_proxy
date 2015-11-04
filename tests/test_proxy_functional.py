@@ -45,6 +45,7 @@ def test_get_range_from():
                             proxies={"http": "http://localhost:8000"})
     
     assert response.status_code == 206
+    assert len(response.text) == 67
     assert response.text.startswith("<head>")
     assert "<title>Hello</title>" in response.text
     assert "<h1>Hello</h1>" in response.text
